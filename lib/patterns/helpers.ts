@@ -4,9 +4,10 @@ import { getServiceClient } from "@/lib/supabase";
 import type { ContractLite, Severity } from "@/lib/patterns/types";
 
 const COLUMNS =
-  "id,contractor_id,contractor_name,entity_nit,entity_name,contract_value," +
-  "selection_method,contract_type,start_date,end_date,signing_date," +
-  "legal_rep_id,legal_rep_name,legal_rep_address,secop_url,contract_object";
+  "id,contractor_id,contractor_name,entity_nit,entity_name,entity_order," +
+  "contract_value,selection_method,contract_type,start_date,end_date,signing_date," +
+  "legal_rep_id,legal_rep_name,legal_rep_address,secop_url,contract_object," +
+  "category_code:raw_data->>codigo_de_categoria_principal";
 
 /**
  * Carga TODOS los contratos (paginando de a 1000) a memoria. Con el universo
@@ -55,6 +56,39 @@ export function isDocumentId(id: string | null | undefined): id is string {
   if (!isRealId(id)) return false;
   const digits = id.replace(/[.\-\s]/g, "");
   return /^\d{5,}$/.test(digits);
+}
+
+/**
+ * ¿La entidad es DISTRITAL (jurisdicción del Concejo de Bogotá)? Se usa para
+ * excluir el ruido de entidades nacionales (Defensoría, ANT, JEP…) que están en
+ * Bogotá pero no son objeto de control político distrital. Combina el campo
+ * `orden`=Territorial con el nombre para recuperar entidades distritales mal
+ * clasificadas, y excluye Corporaciones Autónomas (CAR) y Nacionales.
+ */
+const DISTRITAL_NAME = /distrital|distrito capital|alcald[íi]a local|bogot[áa]\s*d\.?\s*c/i;
+
+export function isDistrital(c: {
+  entity_order: string | null;
+  entity_name: string | null;
+}): boolean {
+  if ((c.entity_order ?? "").trim().toLowerCase() === "territorial") return true;
+  return DISTRITAL_NAME.test(c.entity_name ?? "");
+}
+
+/**
+ * ¿El "contratista" es en realidad una entidad pública? (convenio
+ * interadministrativo — Estado contratando con Estado, no es corrupción).
+ * Se detecta si su documento coincide con un NIT de entidad, o por nombre.
+ */
+const PUBLIC_NAME =
+  /^(alcald[íi]a|secretar[íi]a|instituto|fondo|unidad administrativa|departamento administrativo|ministerio|agencia nacional|corporaci[óo]n aut|subred|empresa social del estado|e\.s\.e|universidad (nacional|distrital|pedag))/i;
+
+export function isPublicContractor(
+  c: { contractor_id: string | null; contractor_name: string | null },
+  entityNits: Set<string>,
+): boolean {
+  if (c.contractor_id && entityNits.has(c.contractor_id)) return true;
+  return PUBLIC_NAME.test((c.contractor_name ?? "").trim());
 }
 
 /** Ordena candidatos: primero críticos, luego por monto involucrado. */

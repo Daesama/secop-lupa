@@ -7,6 +7,7 @@ export interface ContractLite {
   contractor_name: string | null;
   entity_nit: string | null;
   entity_name: string | null;
+  entity_order: string | null;
   contract_value: number | null;
   selection_method: string | null;
   contract_type: string | null;
@@ -18,6 +19,8 @@ export interface ContractLite {
   legal_rep_address: string | null;
   secop_url: string | null;
   contract_object: string | null;
+  /** Código UNSPSC de categoría (desde raw_data), para comparar objetos similares. */
+  category_code: string | null;
 }
 
 export type Severity = "critical" | "suspicious" | "low";

@@ -1,24 +1,24 @@
 // Patrón 2 — Montos inflados.
-// Un contrato cuyo valor supera enormemente el promedio de contratos
-// comparables. Comparamos por (modalidad de selección + tipo de contrato) como
-// proxy de "objeto similar" — sin cargar raw_data. Umbrales del brief:
-// > 200% del promedio → sospechoso (3× la media), > 400% → crítico (5×).
-// Nota: al incorporar `category_code` (UNSPSC) la comparación será más fina.
+// Un contrato cuyo valor supera enormemente el promedio de contratos del MISMO
+// objeto (código UNSPSC de categoría). Comparar dentro de la misma categoría
+// evita marcar programas grandes legítimos como anomalías. Umbrales del brief:
+// > 200% del promedio → sospechoso (3×), > 400% → crítico (5×).
 
 import type { AlertCandidate, ContractLite } from "@/lib/patterns/types";
 
 const SUSPICIOUS_FACTOR = 3; // +200%
 const CRITICAL_FACTOR = 5; // +400%
-const MIN_GROUP_SIZE = 15; // suficientes muestras para un promedio confiable
+const MIN_GROUP_SIZE = 15; // muestras suficientes para un promedio confiable
 
 export function detectInflatedAmounts(
   contracts: ContractLite[],
 ): AlertCandidate[] {
+  // Agrupar por categoría UNSPSC. Sin categoría no se compara (conservador).
   const groups = new Map<string, ContractLite[]>();
   for (const c of contracts) {
+    if (!c.category_code) continue;
     if (!c.contract_value || c.contract_value <= 0) continue;
-    const key = `${c.selection_method ?? "?"}||${c.contract_type ?? "?"}`;
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(c);
+    (groups.get(c.category_code) ?? groups.set(c.category_code, []).get(c.category_code)!).push(c);
   }
 
   const out: AlertCandidate[] = [];
@@ -35,7 +35,7 @@ export function detectInflatedAmounts(
       out.push({
         alert_type: "inflated_amount",
         severity,
-        title: `Contrato ${ratio.toFixed(1)}× el promedio — ${c.entity_name ?? "entidad"}`,
+        title: `Contrato ${ratio.toFixed(1)}× el promedio de su categoría — ${c.entity_name ?? "entidad"}`,
         related_contract_ids: [c.id],
         entity_name: c.entity_name,
         contractor_name: c.contractor_name,
@@ -45,9 +45,10 @@ export function detectInflatedAmounts(
           contratista: c.contractor_name,
           objeto: c.contract_object,
           valor_del_contrato: c.contract_value,
-          promedio_categoria: Math.round(avg),
+          categoria_unspsc: c.category_code,
+          promedio_misma_categoria: Math.round(avg),
+          contratos_comparados: group.length,
           veces_sobre_promedio: Number(ratio.toFixed(1)),
-          categoria_comparada: `${c.selection_method} / ${c.contract_type}`,
         },
       });
     }

@@ -10,7 +10,9 @@ import type { AlertCandidate, ContractLite } from "@/lib/patterns/types";
 
 const MIN_CONTRACTS = 20; // entidades con volumen suficiente
 const SUSPICIOUS_SHARE = 0.9; // ≥90% directa
-const CRITICAL_SHARE = 0.95; // ≥95% directa
+// La concentración de contratación directa es una señal de TRANSPARENCIA
+// (amerita revisión), no prueba de corrupción por sí sola: se mantiene en
+// "sospechosa", nunca "crítica".
 
 const DIRECT_METHODS = new Set([
   "contratación directa",
@@ -37,7 +39,7 @@ export function detectConcentration(
     const share = direct.length / group.length;
     if (share < SUSPICIOUS_SHARE) continue;
 
-    const severity = share >= CRITICAL_SHARE ? "critical" : "suspicious";
+    const severity = "suspicious" as const;
     const first = group[0];
     const totalDirect = direct.reduce((s, c) => s + (c.contract_value ?? 0), 0);
     out.push({
