@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   TriangleAlert,
+  FileBarChart,
   Building2,
   Users,
   FileText,
@@ -19,6 +20,7 @@ import {
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/alerts", label: "Alertas", icon: TriangleAlert },
+  { href: "/reports", label: "Reportes", icon: FileBarChart },
   { href: "/entities", label: "Entidades", icon: Building2 },
   { href: "/contractors", label: "Contratistas", icon: Users },
   { href: "/contracts", label: "Contratos", icon: FileText },
@@ -100,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       {/* Sidebar desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface lg:flex print:!hidden">
         <Brand />
         <NavLinks />
         <div className="mt-auto px-5 py-4 text-[11px] leading-relaxed text-muted">
@@ -132,8 +134,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Columna principal */}
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur sm:px-6">
+      <div className="lg:pl-64 print:pl-0">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur sm:px-6 print:hidden">
           <button
             onClick={() => setOpen(true)}
             aria-label="Abrir menú"
@@ -151,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main>{children}</main>
 
-        <footer className="border-t border-border px-6 py-5 text-xs text-muted">
+        <footer className="border-t border-border px-6 py-5 text-xs text-muted print:hidden">
           Los patrones detectados ameritan verificación y no implican por sí
           mismos una irregularidad. Fuente: SECOP II (datos.gov.co).
         </footer>

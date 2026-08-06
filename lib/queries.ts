@@ -88,6 +88,35 @@ export async function getAlertById(id: string): Promise<AlertRow | null> {
   return (data as AlertRow) ?? null;
 }
 
+export interface ReportRow {
+  id: string;
+  title: string;
+  period_start: string | null;
+  period_end: string | null;
+  content: string;
+  created_at: string;
+}
+
+export async function getReports(): Promise<ReportRow[]> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("reports")
+    .select("id,title,period_start,period_end,content,created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data ?? []) as ReportRow[];
+}
+
+export async function getReportById(id: string): Promise<ReportRow | null> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("reports")
+    .select("id,title,period_start,period_end,content,created_at")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as ReportRow) ?? null;
+}
+
 export interface ComparisonUniverse {
   categoria: string;
   promedio: number;

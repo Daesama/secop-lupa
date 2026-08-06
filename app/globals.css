@@ -108,3 +108,26 @@ html.theme-ready * {
   background: var(--border);
   border-radius: 9999px;
 }
+
+/* Impresión / exportar a PDF: forzar tema claro y márgenes de página. */
+@media print {
+  :root,
+  :root.dark {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --border: #d9dee7;
+    --fg: #0f172a;
+    --muted: #475569;
+    --primary: #1d4ed8;
+    --critical: #b91c1c;
+    --suspicious: #b45309;
+    --low: #047857;
+  }
+  body {
+    background: #ffffff;
+  }
+  @page {
+    margin: 1.4cm;
+  }
+}
