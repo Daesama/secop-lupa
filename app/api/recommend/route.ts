@@ -22,6 +22,7 @@ Principios obligatorios:
 - Lenguaje NEUTRO y prudente. Esto es una guía procedimental, no asesoría jurídica definitiva ni una acusación.
 - Sé específico según el tipo de alerta y los datos del contrato (cita el identificador de SECOP).
 - Montos en pesos colombianos.
+- Anticipa las ramas de decisión: según lo que responda la entidad, indica la acción concreta (cerrar el caso, insistir, o escalar a un órgano de control específico como la Contraloría de Bogotá o la Personería, con el motivo).
 
 Devuelves SIEMPRE un JSON con la estructura pedida. El campo derecho_peticion.cuerpo debe ser un texto formal, respetuoso y listo para radicar, que cite el contrato y solicite la información concreta.`;
 
@@ -48,6 +49,26 @@ const SCHEMA = {
       type: "array",
       items: { type: "string" },
     },
+    segun_la_respuesta: {
+      type: "array",
+      description:
+        "Ramas de decisión según lo que responda la entidad al derecho de petición.",
+      items: {
+        type: "object",
+        properties: {
+          escenario: {
+            type: "string",
+            description: "La condición, p.ej. 'Si justifica el valor con soportes técnicos'.",
+          },
+          accion: {
+            type: "string",
+            description: "Qué hacer en ese caso, p.ej. 'Cerrar el caso' o 'Escalar a la Contraloría de Bogotá'.",
+          },
+        },
+        required: ["escenario", "accion"],
+        additionalProperties: false,
+      },
+    },
     derecho_peticion: {
       type: "object",
       properties: {
@@ -63,6 +84,7 @@ const SCHEMA = {
     "advertencia",
     "pasos",
     "preguntas_derecho_peticion",
+    "segun_la_respuesta",
     "derecho_peticion",
   ],
   additionalProperties: false,
@@ -102,9 +124,9 @@ ${contracts
     const client = new Anthropic();
     const res = await client.messages.create({
       model: MODEL,
-      max_tokens: 2500,
+      max_tokens: 4500,
       system: SYSTEM,
-      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
+      output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       messages: [
         {
           role: "user",

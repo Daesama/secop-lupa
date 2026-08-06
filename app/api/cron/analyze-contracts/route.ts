@@ -7,6 +7,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runAllDetectors } from "@/lib/patterns";
 import { explainAlert, templateText } from "@/lib/ai/analyze";
+import { verifyCandidates } from "@/lib/ai/verify";
 import { getServiceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -35,10 +36,15 @@ export async function GET(req: NextRequest) {
     const supabase = getServiceClient();
 
     // 1. Detección determinista sobre todos los contratos.
-    const candidates = await runAllDetectors();
+    const detected = await runAllDetectors();
 
-    // 2. Persistir TODAS las alertas. Las primeras `maxAlerts` (mayor gravedad
-    //    y valor) las redacta Haiku; el resto usa texto-plantilla por tipo.
+    // 1b. Verificación con IA (2º pase): descarta candidatos débiles. Se puede
+    //     saltar con ?verify=0.
+    const skipVerify = req.nextUrl.searchParams.get("verify") === "0";
+    const candidates = skipVerify ? detected : await verifyCandidates(detected);
+
+    // 2. Persistir TODAS las alertas verificadas. Las primeras `maxAlerts`
+    //    (mayor gravedad y valor) las redacta Haiku; el resto texto-plantilla.
     const rows = [];
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
@@ -75,7 +81,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       status: "success",
-      candidates_detected: candidates.length,
+      candidates_detected: detected.length,
+      candidates_verificados: candidates.length,
+      descartados_por_ia: detected.length - candidates.length,
       by_severity: bySeverity,
       alerts_written: rows.length,
       duration_seconds: Math.round((Date.now() - startedAt) / 1000),

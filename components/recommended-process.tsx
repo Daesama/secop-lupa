@@ -8,11 +8,17 @@ import {
   FileText,
   Copy,
   Check,
+  GitBranch,
+  CornerDownRight,
 } from "lucide-react";
 
 interface Paso {
   titulo: string;
   detalle: string;
+}
+interface Rama {
+  escenario: string;
+  accion: string;
 }
 interface DerechoPeticion {
   asunto: string;
@@ -23,6 +29,7 @@ interface Ruta {
   advertencia: string;
   pasos: Paso[];
   preguntas_derecho_peticion: string[];
+  segun_la_respuesta: Rama[];
   derecho_peticion: DerechoPeticion;
 }
 
@@ -124,6 +131,27 @@ export function RecommendedProcess({ alertId }: { alertId: string }) {
                 </li>
               ))}
             </ol>
+
+            {/* Árbol de decisión según la respuesta */}
+            {ruta.segun_la_respuesta?.length > 0 && (
+              <div className="rounded-xl border border-border bg-surface-2 p-4">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-fg">
+                  <GitBranch className="h-4 w-4 text-primary" /> Según la
+                  respuesta que reciba
+                </h3>
+                <ul className="mt-3 space-y-2.5">
+                  {ruta.segun_la_respuesta.map((r, i) => (
+                    <li key={i} className="text-sm">
+                      <p className="font-medium text-fg">{r.escenario}</p>
+                      <p className="mt-0.5 flex items-start gap-1.5 text-muted">
+                        <CornerDownRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        {r.accion}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Derecho de petición */}
             <div className="rounded-xl border border-border bg-bg">
