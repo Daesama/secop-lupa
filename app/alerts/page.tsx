@@ -15,7 +15,7 @@ export default async function AlertsPage({
   searchParams: Promise<{ severity?: string }>;
 }) {
   const { severity } = await searchParams;
-  const alerts = await getAlerts({ severity, limit: 100 });
+  const alerts = await getAlerts({ severity, limit: 300 });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">

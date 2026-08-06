@@ -6,7 +6,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { runAllDetectors } from "@/lib/patterns";
-import { explainAlert } from "@/lib/ai/analyze";
+import { explainAlert, templateText } from "@/lib/ai/analyze";
 import { getServiceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -36,12 +36,16 @@ export async function GET(req: NextRequest) {
 
     // 1. Detección determinista sobre todos los contratos.
     const candidates = await runAllDetectors();
-    const selected = candidates.slice(0, maxAlerts);
 
-    // 2. Haiku redacta cada alerta seleccionada.
+    // 2. Persistir TODAS las alertas. Las primeras `maxAlerts` (mayor gravedad
+    //    y valor) las redacta Haiku; el resto usa texto-plantilla por tipo.
     const rows = [];
-    for (const candidate of selected) {
-      const { description, ai_analysis } = await explainAlert(candidate);
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const { description, ai_analysis } =
+        i < maxAlerts
+          ? await explainAlert(candidate)
+          : templateText(candidate);
       rows.push({
         alert_type: candidate.alert_type,
         severity: candidate.severity,
