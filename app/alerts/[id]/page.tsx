@@ -4,6 +4,7 @@ import { getAlertById, getContractsByIds } from "@/lib/queries";
 import { SeverityBadge, TypeChip } from "@/components/ui";
 import { AlertChat } from "@/components/alert-chat";
 import { RecommendedProcess } from "@/components/recommended-process";
+import { ComparisonUniverse } from "@/components/comparison-universe";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -121,6 +122,10 @@ export default async function AlertDetail({
           )}
         </div>
       </section>
+
+      {alert.alert_type === "inflated_amount" && alert.related_contracts[0] && (
+        <ComparisonUniverse contractId={alert.related_contracts[0]} />
+      )}
 
       <RecommendedProcess alertId={alert.id} />
 

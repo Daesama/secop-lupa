@@ -2,6 +2,7 @@
 // service key (nunca llega al navegador). Datos: tablas `alerts` y `contracts`.
 
 import { getServiceClient } from "@/lib/supabase";
+import { isDistrital } from "@/lib/patterns/helpers";
 
 export interface AlertRow {
   id: string;
@@ -85,6 +86,75 @@ export async function getAlertById(id: string): Promise<AlertRow | null> {
     .eq("id", id)
     .maybeSingle();
   return (data as AlertRow) ?? null;
+}
+
+export interface ComparisonUniverse {
+  categoria: string;
+  promedio: number;
+  mediana: number;
+  total: number;
+  flaggedValue: number;
+  ratio: number;
+  contratos: ContractRow[];
+}
+
+/**
+ * Universo de comparación de un contrato "monto inflado": los contratos
+ * distritales de la MISMA categoría UNSPSC que se usaron como referencia.
+ * Permite que el concejal vea y juzgue la comparabilidad sin reconstruirlo a mano.
+ */
+export async function getComparisonUniverse(
+  contractId: string,
+): Promise<ComparisonUniverse | null> {
+  const sb = getServiceClient();
+  const { data: flaggedRaw } = await sb
+    .from("contracts")
+    .select("contract_value,cat:raw_data->>codigo_de_categoria_principal")
+    .eq("id", contractId)
+    .maybeSingle();
+  const flagged = flaggedRaw as unknown as {
+    contract_value: number | null;
+    cat: string | null;
+  } | null;
+  if (!flagged?.cat) return null;
+
+  const { data } = await sb
+    .from("contracts")
+    .select(
+      "id,secop_id,contractor_name,entity_name,entity_order,contract_object,contract_value,signing_date,selection_method,secop_url",
+    )
+    .eq("raw_data->>codigo_de_categoria_principal", flagged.cat)
+    .not("contract_value", "is", null)
+    .limit(3000);
+
+  const group = ((data ?? []) as unknown as (ContractRow & {
+    entity_order: string | null;
+  })[])
+    .filter(isDistrital)
+    .filter((c) => Number(c.contract_value) > 0);
+  if (group.length === 0) return null;
+
+  const values = group
+    .map((c) => Number(c.contract_value))
+    .sort((a, b) => a - b);
+  const promedio = values.reduce((a, b) => a + b, 0) / values.length;
+  const mediana = values[Math.floor(values.length / 2)];
+  const flaggedValue = Number(flagged.contract_value) || 0;
+
+  const contratos = group
+    .filter((c) => c.id !== contractId)
+    .sort((a, b) => Number(b.contract_value) - Number(a.contract_value))
+    .slice(0, 15);
+
+  return {
+    categoria: flagged.cat,
+    promedio,
+    mediana,
+    total: group.length,
+    flaggedValue,
+    ratio: promedio > 0 ? flaggedValue / promedio : 0,
+    contratos,
+  };
 }
 
 export async function getContractsByIds(ids: string[]): Promise<ContractRow[]> {
