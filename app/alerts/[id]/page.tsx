@@ -56,46 +56,61 @@ export default async function AlertDetail({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Contratos relacionados ({alert.related_contracts.length})
         </h2>
+        <p className="mt-1 text-xs text-muted">
+          Haz clic en un contrato para verlo en SECOP II.
+        </p>
         <div className="mt-3 space-y-3">
-          {contracts.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-2xl border border-border bg-surface p-4"
-            >
-              <div className="flex flex-wrap items-start gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-fg">
-                    {c.contractor_name ?? "Contratista no especificado"}
-                  </p>
-                  <p className="text-sm text-muted">{c.entity_name}</p>
+          {contracts.map((c) => {
+            const inner = (
+              <>
+                <div className="flex flex-wrap items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-fg">
+                      {c.contractor_name ?? "Contratista no especificado"}
+                    </p>
+                    <p className="text-sm text-muted">{c.entity_name}</p>
+                  </div>
+                  {c.contract_value != null && (
+                    <span className="ml-auto text-sm font-bold tabular-nums text-fg">
+                      {formatCOP(c.contract_value)}
+                    </span>
+                  )}
                 </div>
-                {c.contract_value != null && (
-                  <span className="ml-auto text-sm font-bold tabular-nums text-fg">
-                    {formatCOP(c.contract_value)}
-                  </span>
+                {c.contract_object && (
+                  <p className="mt-2 line-clamp-2 text-sm text-muted">
+                    {c.contract_object}
+                  </p>
                 )}
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                  <span>{c.selection_method}</span>
+                  {c.signing_date && <span>· firma {c.signing_date}</span>}
+                  {c.secop_url && (
+                    <span className="ml-auto inline-flex items-center gap-1.5 font-medium text-primary">
+                      Ver en SECOP II <ExternalLink className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                </div>
+              </>
+            );
+            return c.secop_url ? (
+              <a
+                key={c.id}
+                href={c.secop_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/50 hover:shadow-[0_4px_20px_-8px_rgba(37,99,235,0.25)] focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                {inner}
+              </a>
+            ) : (
+              <div
+                key={c.id}
+                className="rounded-2xl border border-border bg-surface p-4"
+              >
+                {inner}
               </div>
-              {c.contract_object && (
-                <p className="mt-2 line-clamp-2 text-sm text-muted">
-                  {c.contract_object}
-                </p>
-              )}
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                <span>{c.selection_method}</span>
-                {c.signing_date && <span>· firma {c.signing_date}</span>}
-                {c.secop_url && (
-                  <a
-                    href={c.secop_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-fg transition hover:opacity-90"
-                  >
-                    Ver en SECOP II <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {alert.related_contracts.length > contracts.length && (
             <p className="text-xs text-muted">
               Mostrando {contracts.length} de {alert.related_contracts.length}{" "}
