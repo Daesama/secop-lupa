@@ -47,28 +47,34 @@ async function getIncrementalCursor(
   return `${cursor.toISOString().slice(0, 10)}T00:00:00`;
 }
 
-/** Upsert de un lote; devuelve cuántos eran nuevos vs. actualizados. */
+/** Conteo total de filas en `contracts` (head, sin traer datos). */
+async function countContracts(
+  supabase: ReturnType<typeof getServiceClient>,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("contracts")
+    .select("*", { count: "exact", head: true });
+  if (error) throw new Error(`Error contando contratos: ${error.message}`);
+  return count ?? 0;
+}
+
+/**
+ * Upsert de un lote. Cuenta nuevos vs. actualizados por la diferencia del total
+ * de filas antes/después (evita un .in() con miles de IDs que rompe el fetch).
+ */
 async function upsertBatch(
   supabase: ReturnType<typeof getServiceClient>,
   rows: ContractRow[],
-): Promise<{ inserted: number; updated: number }> {
-  const ids = rows.map((r) => r.secop_id);
-
-  const { data: existing, error: selErr } = await supabase
-    .from("contracts")
-    .select("secop_id")
-    .in("secop_id", ids);
-  if (selErr) throw new Error(`Error consultando existentes: ${selErr.message}`);
-
-  const existingIds = new Set((existing ?? []).map((r) => r.secop_id));
-  const inserted = rows.filter((r) => !existingIds.has(r.secop_id)).length;
-
+  countBefore: number,
+): Promise<{ inserted: number; updated: number; countAfter: number }> {
   const { error: upErr } = await supabase
     .from("contracts")
     .upsert(rows, { onConflict: "secop_id" });
   if (upErr) throw new Error(`Error en upsert: ${upErr.message}`);
 
-  return { inserted, updated: rows.length - inserted };
+  const countAfter = await countContracts(supabase);
+  const inserted = Math.max(0, countAfter - countBefore);
+  return { inserted, updated: rows.length - inserted, countAfter };
 }
 
 export async function GET(req: NextRequest) {
@@ -88,6 +94,7 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getServiceClient();
     const signedAfter = full ? undefined : (await getIncrementalCursor(supabase)) ?? undefined;
+    let runningCount = await countContracts(supabase);
 
     for (let page = 0; page < MAX_PAGES_PER_RUN; page++) {
       const raw = await fetchContractsPage({
@@ -103,9 +110,14 @@ export async function GET(req: NextRequest) {
         .filter((r): r is ContractRow => r !== null);
 
       if (rows.length > 0) {
-        const { inserted, updated } = await upsertBatch(supabase, rows);
+        const { inserted, updated, countAfter } = await upsertBatch(
+          supabase,
+          rows,
+          runningCount,
+        );
         newCount += inserted;
         updatedCount += updated;
+        runningCount = countAfter;
       }
 
       // Última página: la API devolvió menos de lo pedido → no hay más.
