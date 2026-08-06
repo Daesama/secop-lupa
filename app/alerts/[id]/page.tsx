@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
 import { getAlertById, getContractsByIds } from "@/lib/queries";
 import { SeverityBadge, TypeChip } from "@/components/ui";
 import { AlertChat } from "@/components/alert-chat";
+import { RecommendedProcess } from "@/components/recommended-process";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -120,6 +121,8 @@ export default async function AlertDetail({
           )}
         </div>
       </section>
+
+      <RecommendedProcess alertId={alert.id} />
 
       <AlertChat alertId={alert.id} />
     </div>
