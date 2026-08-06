@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
+import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
 import { getAlertById, getContractsByIds } from "@/lib/queries";
-import { ALERT_TYPE_LABEL, SeverityBadge } from "@/components/ui";
+import { SeverityBadge, TypeChip } from "@/components/ui";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -17,68 +18,69 @@ export default async function AlertDetail({
   const contracts = await getContractsByIds(alert.related_contracts);
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8">
-      <a href="/alerts" className="text-sm text-[#1a365d] hover:underline">
-        ← Volver a alertas
+    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <a
+        href="/alerts"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-fg"
+      >
+        <ArrowLeft className="h-4 w-4" /> Volver a alertas
       </a>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         <SeverityBadge severity={alert.severity} />
-        <span className="text-sm text-gray-500">
-          {ALERT_TYPE_LABEL[alert.alert_type] ?? alert.alert_type}
-        </span>
+        <TypeChip type={alert.alert_type} />
         {alert.total_amount != null && (
-          <span className="ml-auto text-lg font-semibold text-[#1a365d]">
+          <span className="ml-auto text-xl font-bold tabular-nums text-fg">
             {formatCOP(alert.total_amount)}
           </span>
         )}
       </div>
 
-      <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+      <h1 className="mt-3 font-display text-2xl font-bold leading-tight text-fg text-balance">
         {alert.title}
       </h1>
-      <p className="mt-3 text-gray-700">{alert.description}</p>
+      <p className="mt-3 leading-relaxed text-fg/90">{alert.description}</p>
 
       {alert.ai_analysis && (
-        <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-            Análisis
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
+            <Sparkles className="h-4 w-4 text-primary" /> Análisis
           </h2>
-          <p className="mt-2 whitespace-pre-line text-gray-700">
+          <p className="mt-2.5 whitespace-pre-line leading-relaxed text-muted">
             {alert.ai_analysis}
           </p>
         </section>
       )}
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Contratos relacionados ({alert.related_contracts.length})
         </h2>
         <div className="mt-3 space-y-3">
           {contracts.map((c) => (
             <div
               key={c.id}
-              className="rounded-xl border border-gray-200 bg-white p-4"
+              className="rounded-2xl border border-border bg-surface p-4"
             >
               <div className="flex flex-wrap items-start gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-fg">
                     {c.contractor_name ?? "Contratista no especificado"}
                   </p>
-                  <p className="text-sm text-gray-500">{c.entity_name}</p>
+                  <p className="text-sm text-muted">{c.entity_name}</p>
                 </div>
                 {c.contract_value != null && (
-                  <span className="ml-auto text-sm font-semibold text-[#1a365d]">
+                  <span className="ml-auto text-sm font-bold tabular-nums text-fg">
                     {formatCOP(c.contract_value)}
                   </span>
                 )}
               </div>
               {c.contract_object && (
-                <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                <p className="mt-2 line-clamp-2 text-sm text-muted">
                   {c.contract_object}
                 </p>
               )}
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                 <span>{c.selection_method}</span>
                 {c.signing_date && <span>· firma {c.signing_date}</span>}
                 {c.secop_url && (
@@ -86,22 +88,22 @@ export default async function AlertDetail({
                     href={c.secop_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto rounded-md bg-[#1a365d] px-3 py-1 font-medium text-white hover:bg-[#22467a]"
+                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-fg transition hover:opacity-90"
                   >
-                    Ver en SECOP II ↗
+                    Ver en SECOP II <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
               </div>
             </div>
           ))}
           {alert.related_contracts.length > contracts.length && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               Mostrando {contracts.length} de {alert.related_contracts.length}{" "}
               contratos.
             </p>
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

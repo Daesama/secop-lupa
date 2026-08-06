@@ -18,37 +18,38 @@ export default async function AlertsPage({
   const alerts = await getAlerts({ severity, limit: 100 });
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
-      <h1 className="text-2xl font-semibold text-[#1a365d]">Alertas</h1>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <h1 className="font-display text-3xl font-bold tracking-tight text-fg">
+        Alertas
+      </h1>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => {
           const active = (severity ?? "") === f.key;
           return (
             <a
               key={f.key}
               href={f.key ? `/alerts?severity=${f.key}` : "/alerts"}
-              className={`rounded-full border px-3 py-1 text-sm ${
+              className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
                 active
-                  ? "border-[#1a365d] bg-[#1a365d] text-white"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                  ? "border-primary bg-primary text-primary-fg"
+                  : "border-border bg-surface text-muted hover:text-fg"
               }`}
             >
               {f.label}
             </a>
           );
         })}
+        <span className="ml-auto text-sm text-muted tabular-nums">
+          {alerts.length} alerta(s)
+        </span>
       </div>
 
-      <p className="mt-4 text-sm text-gray-500">
-        {alerts.length} alerta(s){severity ? ` · ${severity}` : ""}
-      </p>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
         {alerts.map((a) => (
           <AlertCard key={a.id} alert={a} />
         ))}
       </div>
-    </main>
+    </div>
   );
 }

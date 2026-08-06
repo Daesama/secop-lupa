@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
+import { ThemeScript } from "@/components/theme-script";
+import { AppShell } from "@/components/app-shell";
 
+// Body: Geist (limpia, legible para datos). Display: Bricolage Grotesque
+// (con carácter, moderna) para titulares — pareo deliberado, no el default de IA.
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -10,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -22,32 +32,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full`}
+      suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col bg-gray-50 text-gray-900">
-        <header className="border-b border-gray-200 bg-[#1a365d] text-white">
-          <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-            <a href="/" className="font-semibold tracking-tight">
-              Seguimiento SECOP II · Bogotá
-            </a>
-            <nav className="ml-auto flex gap-5 text-sm text-blue-100">
-              <a href="/" className="hover:text-white">
-                Dashboard
-              </a>
-              <a href="/alerts" className="hover:text-white">
-                Alertas
-              </a>
-            </nav>
-          </div>
-        </header>
-        <div className="flex-1">{children}</div>
-        <footer className="border-t border-gray-200 bg-white">
-          <div className="mx-auto max-w-6xl px-6 py-4 text-xs text-gray-500">
-            Análisis automatizado con IA de la contratación pública de Bogotá.
-            Los patrones detectados ameritan verificación y no implican por sí
-            mismos una irregularidad. Fuente: SECOP II (datos.gov.co).
-          </div>
-        </footer>
+      <head>
+        <ThemeScript />
+      </head>
+      <body className="min-h-full">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
