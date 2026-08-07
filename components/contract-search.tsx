@@ -4,14 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
-export function ContractSearch() {
+export function ContractSearch({ initial = "" }: { initial?: string }) {
   const router = useRouter();
-  const [id, setId] = useState("");
+  const [q, setQ] = useState(initial);
 
   function go(e: React.FormEvent) {
     e.preventDefault();
-    const v = id.trim();
-    if (v) router.push(`/contracts/${encodeURIComponent(v)}`);
+    const v = q.trim();
+    if (v.length >= 3) router.push(`/contracts?q=${encodeURIComponent(v)}`);
   }
 
   return (
@@ -19,9 +19,9 @@ export function ContractSearch() {
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <input
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          placeholder="Pega el ID del contrato de SECOP (ej. CO1.PCCNTR.9684625)"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Contratista, entidad, objeto, o ID de contrato/proceso…"
           className="w-full rounded-xl border border-border bg-surface py-3 pl-10 pr-3 text-sm text-fg outline-none placeholder:text-muted focus:border-primary"
         />
       </div>
@@ -29,7 +29,7 @@ export function ContractSearch() {
         type="submit"
         className="rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-fg transition hover:opacity-90"
       >
-        Analizar
+        Buscar
       </button>
     </form>
   );

@@ -75,6 +75,28 @@ SEÑALES CALCULADAS (datos distritales):
 - Contratación directa de la entidad: ${s.porcentajeDirectaEntidad != null ? s.porcentajeDirectaEntidad.toFixed(0) + "%" : "?"} de ${s.contratosEntidad ?? "?"} contratos.`;
 }
 
+function mapDbRow(d: Record<string, unknown>): ContractDetail {
+  return {
+    secop_id: (d.secop_id as string) ?? "",
+    contractor_name: (d.contractor_name as string) ?? null,
+    contractor_id: (d.contractor_id as string) ?? null,
+    entity_name: (d.entity_name as string) ?? null,
+    entity_nit: (d.entity_nit as string) ?? null,
+    entity_order: (d.entity_order as string) ?? null,
+    contract_value: (d.contract_value as number) ?? null,
+    selection_method: (d.selection_method as string) ?? null,
+    contract_type: (d.contract_type as string) ?? null,
+    contract_status: (d.contract_status as string) ?? null,
+    signing_date: (d.signing_date as string) ?? null,
+    start_date: (d.start_date as string) ?? null,
+    end_date: (d.end_date as string) ?? null,
+    contract_object: (d.contract_object as string) ?? null,
+    secop_url: (d.secop_url as string) ?? null,
+    category_code: (d.category_code as string) ?? null,
+    source: "base",
+  };
+}
+
 /** Busca un contrato por su id de SECOP: primero en la base, luego en vivo. */
 export async function lookupContract(
   secopId: string,
@@ -83,36 +105,25 @@ export async function lookupContract(
   if (!id) return null;
   const sb = getServiceClient();
 
-  // 1) En la base
-  const { data } = await sb
+  // 1) Por id de contrato (CO1.PCCNTR) exacto
+  const exact = await sb
     .from("contracts")
     .select(DB_SELECT)
     .eq("secop_id", id)
     .maybeSingle();
-  if (data) {
-    const d = data as unknown as Record<string, unknown>;
-    return {
-      secop_id: id,
-      contractor_name: (d.contractor_name as string) ?? null,
-      contractor_id: (d.contractor_id as string) ?? null,
-      entity_name: (d.entity_name as string) ?? null,
-      entity_nit: (d.entity_nit as string) ?? null,
-      entity_order: (d.entity_order as string) ?? null,
-      contract_value: (d.contract_value as number) ?? null,
-      selection_method: (d.selection_method as string) ?? null,
-      contract_type: (d.contract_type as string) ?? null,
-      contract_status: (d.contract_status as string) ?? null,
-      signing_date: (d.signing_date as string) ?? null,
-      start_date: (d.start_date as string) ?? null,
-      end_date: (d.end_date as string) ?? null,
-      contract_object: (d.contract_object as string) ?? null,
-      secop_url: (d.secop_url as string) ?? null,
-      category_code: (d.category_code as string) ?? null,
-      source: "base",
-    };
-  }
+  if (exact.data) return mapDbRow(exact.data as unknown as Record<string, unknown>);
 
-  // 2) En vivo desde SECOP (SODA API) por id_contrato
+  // 2) Por id de proceso (CO1.NTC) dentro de la url
+  const byProcess = await sb
+    .from("contracts")
+    .select(DB_SELECT)
+    .ilike("raw_data->urlproceso->>url", `%${id}%`)
+    .limit(1)
+    .maybeSingle();
+  if (byProcess.data) return mapDbRow(byProcess.data as unknown as Record<string, unknown>);
+
+  // 3) En vivo desde SECOP (SODA API) por id_contrato (solo si es un CO1.PCCNTR)
+  if (!/pccntr/i.test(id)) return null;
   try {
     const url = `${SECOP_CONTRACTS_URL}?id_contrato=${encodeURIComponent(id)}&$limit=1`;
     const res = await fetch(url, {

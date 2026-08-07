@@ -34,7 +34,12 @@ export default async function ContractPage({
         <div className="mt-6 rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
           <p className="font-medium text-fg">No se encontró el contrato</p>
           <p className="mt-1 text-sm text-muted">
-            Verifica el ID ({id}). Debe tener la forma CO1.PCCNTR.XXXXXXX.
+            No hallamos “{id}” en la base ni en vivo. Puede que sea un proceso
+            fuera de nuestro universo distrital, o un ID incompleto.
+          </p>
+          <p className="mt-3 text-sm text-muted">
+            Prueba <a href="/contracts" className="text-primary hover:underline">buscar por nombre del contratista o entidad</a>,
+            o usa el ID del contrato con la forma <code className="rounded bg-surface-2 px-1">CO1.PCCNTR.XXXXXXX</code>.
           </p>
         </div>
       </div>

@@ -1,9 +1,19 @@
-import { FileSearch } from "lucide-react";
+import Link from "next/link";
+import { FileSearch, ChevronRight } from "lucide-react";
 import { ContractSearch } from "@/components/contract-search";
+import { searchContracts } from "@/lib/queries";
+import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
-export default function ContractsPage() {
+export default async function ContractsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const results = q ? await searchContracts(q) : [];
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <div className="flex items-center gap-3">
@@ -15,28 +25,75 @@ export default function ContractsPage() {
             Analizar un contrato
           </h1>
           <p className="mt-1 text-muted">
-            Pega el ID de cualquier contrato de SECOP II —aunque no tenga
-            alerta— y la IA lo evalúa.
+            Busca por contratista, entidad, objeto o ID. La IA lo evalúa.
           </p>
         </div>
       </div>
 
       <div className="mt-6">
-        <ContractSearch />
+        <ContractSearch initial={q ?? ""} />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5 text-sm text-muted">
-        <p className="font-medium text-fg">¿Cómo funciona?</p>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>Buscamos el contrato en la base; si no está, lo traemos en vivo de SECOP.</li>
-          <li>Calculamos señales reales (comparación por categoría, historial del contratista, concentración de la entidad).</li>
-          <li>La IA evalúa confiabilidad, qué lo hace dudoso y qué verificar, y puedes chatear o pedir la ruta de acción.</li>
-        </ul>
-        <p className="mt-3 text-xs">
-          El ID tiene la forma <code className="rounded bg-surface-2 px-1">CO1.PCCNTR.XXXXXXX</code>{" "}
-          y aparece en la URL/detalle del contrato en SECOP II.
-        </p>
-      </div>
+      {q ? (
+        results.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
+            <p className="font-medium text-fg">Sin resultados para “{q}”</p>
+            <p className="mt-1 text-sm text-muted">
+              Busca por otro término, o si tienes el ID del contrato
+              (CO1.PCCNTR.…) puedes{" "}
+              <Link
+                href={`/contracts/${encodeURIComponent(q)}`}
+                className="text-primary hover:underline"
+              >
+                analizarlo directamente
+              </Link>{" "}
+              (lo traemos en vivo de SECOP si no está en la base).
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-2">
+            <p className="text-sm text-muted">{results.length} resultado(s)</p>
+            {results.map((c) => (
+              <Link
+                key={c.secop_id}
+                href={`/contracts/${encodeURIComponent(c.secop_id)}`}
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition hover:border-primary/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-fg">
+                    {c.contractor_name ?? "—"}
+                  </p>
+                  <p className="truncate text-xs text-muted">
+                    {c.entity_name} · {c.contract_object ?? ""}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted">{c.secop_id}</p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
+                  {formatCOP(c.contract_value)}
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+              </Link>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="mt-6 rounded-2xl border border-border bg-surface p-5 text-sm text-muted">
+          <p className="font-medium text-fg">¿Cómo funciona?</p>
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            <li>
+              Busca por nombre del contratista, entidad, objeto, o pega un ID
+              (de contrato CO1.PCCNTR o de proceso CO1.NTC).
+            </li>
+            <li>
+              Elige el contrato de los resultados; la IA lo evalúa (confiabilidad,
+              qué lo hace dudoso, qué verificar) y puedes pedir la ruta o chatear.
+            </li>
+            <li>
+              Si el ID de contrato no está en la base, lo traemos en vivo de SECOP.
+            </li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

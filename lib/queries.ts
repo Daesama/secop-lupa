@@ -88,6 +88,47 @@ export async function getAlertById(id: string): Promise<AlertRow | null> {
   return (data as AlertRow) ?? null;
 }
 
+/**
+ * Búsqueda de contratos por texto libre: id de contrato (CO1.PCCNTR), id de
+ * proceso (CO1.NTC, en la url), contratista, entidad u objeto. Devuelve
+ * coincidencias en nuestra base para que el usuario elija (evita adivinar el ID).
+ */
+export async function searchContracts(q: string): Promise<ContractRow[]> {
+  const term = q.trim();
+  if (term.length < 3) return [];
+  const sb = getServiceClient();
+  const cols =
+    "id,secop_id,contractor_name,entity_name,contract_object,contract_value,signing_date,selection_method,secop_url";
+
+  const results = new Map<string, ContractRow>();
+  const add = (rows: ContractRow[] | null) =>
+    (rows ?? []).forEach((r) => results.set(r.secop_id, r));
+
+  // 1) Coincidencia en id de proceso (CO1.NTC, dentro de la url).
+  if (/co1\.ntc/i.test(term)) {
+    const { data } = await sb
+      .from("contracts")
+      .select(cols)
+      .ilike("raw_data->urlproceso->>url", `%${term}%`)
+      .limit(25);
+    add(data as unknown as ContractRow[]);
+  }
+
+  // 2) Coincidencia por id de contrato / contratista / entidad / objeto.
+  const pattern = `%${term}%`;
+  const { data } = await sb
+    .from("contracts")
+    .select(cols)
+    .or(
+      `secop_id.ilike.${pattern},contractor_name.ilike.${pattern},entity_name.ilike.${pattern},contract_object.ilike.${pattern}`,
+    )
+    .order("contract_value", { ascending: false, nullsFirst: false })
+    .limit(25);
+  add(data as unknown as ContractRow[]);
+
+  return [...results.values()].slice(0, 25);
+}
+
 export interface ReportRow {
   id: string;
   title: string;
