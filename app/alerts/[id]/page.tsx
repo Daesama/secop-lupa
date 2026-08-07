@@ -4,7 +4,7 @@ import {
   getAlertById,
   getContractsByIds,
   getNetworkGraph,
-  getContractorGraph,
+  getEntityGraph,
 } from "@/lib/queries";
 import { SeverityBadge, TypeChip } from "@/components/ui";
 import { NetworkGraph } from "@/components/network-graph";
@@ -28,8 +28,8 @@ export default async function AlertDetail({
   const network =
     alert.alert_type === "network"
       ? await getNetworkGraph(alert.related_contracts)
-      : alert.alert_type === "repeated_contractor"
-        ? await getContractorGraph(alert.related_contracts)
+      : ["concentration", "repeated_contractor"].includes(alert.alert_type)
+        ? await getEntityGraph(alert.related_contracts)
         : null;
 
   return (

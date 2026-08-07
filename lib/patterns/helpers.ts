@@ -10,24 +10,29 @@ const COLUMNS =
   "category_code:raw_data->>codigo_de_categoria_principal";
 
 /**
- * Carga TODOS los contratos (paginando de a 1000) a memoria. Con el universo
- * acotado de desarrollo (~30k filas, sin raw_data) esto es liviano y permite
- * agregación en TypeScript sin funciones SQL.
+ * Carga TODOS los contratos a memoria con paginación por KEYSET (id > último),
+ * que es instantánea por página incluso con decenas de miles de filas (evita el
+ * escaneo del offset profundo que provoca timeouts). Permite agregación en TS.
  */
 export async function fetchAllContracts(): Promise<ContractLite[]> {
   const supabase = getServiceClient();
   const pageSize = 1000;
   const all: ContractLite[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+  let lastId = "";
+  for (;;) {
+    let q = supabase
       .from("contracts")
       .select(COLUMNS)
       .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .limit(pageSize);
+    if (lastId) q = q.gt("id", lastId);
+    const { data, error } = await q;
     if (error) throw new Error(`Error cargando contratos: ${error.message}`);
     if (!data || data.length === 0) break;
-    all.push(...(data as unknown as ContractLite[]));
-    if (data.length < pageSize) break;
+    const rows = data as unknown as ContractLite[];
+    all.push(...rows);
+    lastId = rows[rows.length - 1].id;
+    if (rows.length < pageSize) break;
   }
   return all;
 }

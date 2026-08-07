@@ -219,36 +219,35 @@ export async function getNetworkGraph(ids: string[]): Promise<GraphData | null> 
   };
 }
 
-/** Grafo del contratista (hub) ↔ entidades con las que contrata en el distrito. */
-export async function getContractorGraph(ids: string[]): Promise<GraphData | null> {
+/** Grafo de la entidad (hub) ↔ sus principales contratistas por valor. */
+export async function getEntityGraph(ids: string[]): Promise<GraphData | null> {
   if (ids.length === 0) return null;
   const sb = getServiceClient();
-  // Documento del contratista a partir de un contrato relacionado.
   const { data: one } = await sb
     .from("contracts")
-    .select("contractor_id,contractor_name")
+    .select("entity_nit,entity_name")
     .eq("id", ids[0])
     .maybeSingle();
-  const doc = (one as { contractor_id?: string } | null)?.contractor_id;
-  const name = (one as { contractor_name?: string } | null)?.contractor_name;
-  if (!doc) return null;
+  const nit = (one as { entity_nit?: string } | null)?.entity_nit;
+  const name = (one as { entity_name?: string } | null)?.entity_name;
+  if (!nit) return null;
 
   const { data } = await sb
     .from("contracts")
-    .select("entity_name,contract_value")
-    .eq("contractor_id", doc)
-    .limit(500);
+    .select("contractor_name,contract_value")
+    .eq("entity_nit", nit)
+    .limit(3000);
   const rows = (data ?? []) as {
-    entity_name: string | null;
+    contractor_name: string | null;
     contract_value: number | null;
   }[];
   if (rows.length === 0) return null;
   const { nodes, total } = aggregate(
-    rows.map((r) => ({ key: r.entity_name, value: r.contract_value })),
+    rows.map((r) => ({ key: r.contractor_name, value: r.contract_value })),
   );
   return {
-    hub: name ?? "Contratista",
-    subtitle: `${nodes.length} entidad(es) · ${rows.length} contrato(s)`,
+    hub: name ?? "Entidad",
+    subtitle: `${nodes.length} contratistas · ${rows.length} contratos`,
     nodes,
     totalValue: total,
     accent: "#2563eb",
