@@ -124,17 +124,21 @@ export async function lookupContract(
 
   // 3) En vivo desde SECOP (SODA API) por id_contrato (solo si es un CO1.PCCNTR)
   if (!/pccntr/i.test(id)) return null;
-  try {
-    const url = `${SECOP_CONTRACTS_URL}?id_contrato=${encodeURIComponent(id)}&$limit=1`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const arr = (await res.json()) as SecopRawContract[];
-    const raw = arr?.[0];
-    if (!raw) return null;
-    return {
+  const url = `${SECOP_CONTRACTS_URL}?id_contrato=${encodeURIComponent(id)}&$limit=1`;
+  // Reintentos ante 503/429 transitorios de SECOP (frecuentes bajo carga).
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 700 * attempt));
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (res.status === 503 || res.status === 429) continue;
+      if (!res.ok) return null;
+      const arr = (await res.json()) as SecopRawContract[];
+      const raw = arr?.[0];
+      if (!raw) return null;
+      return {
       secop_id: id,
       contractor_name: orNull(raw.proveedor_adjudicado),
       contractor_id: orNull(raw.documento_proveedor),
@@ -155,10 +159,12 @@ export async function lookupContract(
         raw.codigo_de_categoria_principal as string | undefined,
       ),
       source: "secop",
-    };
-  } catch {
-    return null;
+      };
+    } catch {
+      // reintentar
+    }
   }
+  return null;
 }
 
 /** Calcula señales deterministas de sospecha para un contrato. */

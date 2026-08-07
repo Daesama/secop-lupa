@@ -11,7 +11,11 @@ export function ContractSearch({ initial = "" }: { initial?: string }) {
   function go(e: React.FormEvent) {
     e.preventDefault();
     const v = q.trim();
-    if (v.length >= 3) router.push(`/contracts?q=${encodeURIComponent(v)}`);
+    if (v.length < 3) return;
+    // Si parece un ID de SECOP (CO1.PCCNTR / CO1.NTC), ir directo al análisis
+    // (trae en vivo si no está en la base). Si es texto, mostrar resultados.
+    if (/^co1\./i.test(v)) router.push(`/contracts/${encodeURIComponent(v)}`);
+    else router.push(`/contracts?q=${encodeURIComponent(v)}`);
   }
 
   return (
