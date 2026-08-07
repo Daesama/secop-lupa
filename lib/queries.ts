@@ -64,6 +64,62 @@ export interface Count {
   key?: string;
 }
 
+export interface RankRow {
+  name: string;
+  alerts: number;
+  critical: number;
+  amount: number;
+}
+
+/** Ranking de entidades por número de alertas y valor bajo alerta. */
+export async function getEntityRanking(): Promise<RankRow[]> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("alerts")
+    .select("entity_name,severity,total_amount");
+  return rank(
+    (data ?? []) as {
+      entity_name: string | null;
+      severity: string;
+      total_amount: number | null;
+    }[],
+    (r) => r.entity_name,
+  );
+}
+
+/** Ranking de contratistas más señalados (por alertas y valor). */
+export async function getContractorRanking(): Promise<RankRow[]> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("alerts")
+    .select("contractor_name,severity,total_amount");
+  return rank(
+    (data ?? []) as {
+      contractor_name: string | null;
+      severity: string;
+      total_amount: number | null;
+    }[],
+    (r) => r.contractor_name,
+  );
+}
+
+function rank<T extends { severity: string; total_amount: number | null }>(
+  rows: T[],
+  keyOf: (r: T) => string | null,
+): RankRow[] {
+  const map = new Map<string, RankRow>();
+  for (const r of rows) {
+    const name = keyOf(r);
+    if (!name) continue;
+    const cur = map.get(name) ?? { name, alerts: 0, critical: 0, amount: 0 };
+    cur.alerts += 1;
+    if (r.severity === "critical") cur.critical += 1;
+    cur.amount += r.total_amount ?? 0;
+    map.set(name, cur);
+  }
+  return [...map.values()].sort((a, b) => b.alerts - a.alerts || b.amount - a.amount);
+}
+
 /** Top entidades por número de alertas (para gráfica de ranking). */
 export async function getAlertsByEntity(limit = 7): Promise<Count[]> {
   const sb = getServiceClient();

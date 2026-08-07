@@ -1,10 +1,17 @@
-import { ComingSoon } from "@/components/soon";
+import { Users } from "lucide-react";
+import { getContractorRanking } from "@/lib/queries";
+import { RankingList } from "@/components/ranking";
 
-export default function ContractorsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ContractorsPage() {
+  const rows = await getContractorRanking();
   return (
-    <ComingSoon
+    <RankingList
       title="Ranking de contratistas"
-      note="Próximamente: contratistas con más contratos acumulados en el distrito."
+      subtitle="Contratistas con más señales en la contratación distrital."
+      icon={<Users className="h-5 w-5" />}
+      rows={rows}
     />
   );
 }
