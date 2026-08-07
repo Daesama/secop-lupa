@@ -1,19 +1,25 @@
-// Patrón 2 — Montos inflados.
-// Un contrato cuyo valor supera enormemente el promedio de contratos del MISMO
-// objeto (código UNSPSC de categoría). Comparar dentro de la misma categoría
-// evita marcar programas grandes legítimos como anomalías. Umbrales del brief:
-// > 200% del promedio → sospechoso (3×), > 400% → crítico (5×).
+// Patrón 2 — Montos inflados (calibrado para precisión).
+// Se compara contra la MEDIANA de la misma categoría UNSPSC (robusta frente a
+// outliers, a diferencia del promedio) y se exige un valor mínimo absoluto para
+// marcar solo contratos grandes que ameritan escrutinio. Así se evita el ruido.
+// Umbrales: > 5× la mediana → sospechoso, > 10× → crítico.
 
 import type { AlertCandidate, ContractLite } from "@/lib/patterns/types";
 
-const SUSPICIOUS_FACTOR = 3; // +200%
-const CRITICAL_FACTOR = 5; // +400%
-const MIN_GROUP_SIZE = 15; // muestras suficientes para un promedio confiable
+const SUSPICIOUS_FACTOR = 8;
+const CRITICAL_FACTOR = 15;
+const MIN_GROUP_SIZE = 20; // muestras suficientes para una mediana confiable
+const MIN_VALUE = 1_000_000_000; // solo contratos ≥ COP 1.000M (relevancia)
+const MAX_ALERTS = 40; // solo los casos más extremos (evita ruido)
+
+function median(sorted: number[]): number {
+  const n = sorted.length;
+  return n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+}
 
 export function detectInflatedAmounts(
   contracts: ContractLite[],
 ): AlertCandidate[] {
-  // Agrupar por categoría UNSPSC. Sin categoría no se compara (conservador).
   const groups = new Map<string, ContractLite[]>();
   for (const c of contracts) {
     if (!c.category_code) continue;
@@ -24,34 +30,45 @@ export function detectInflatedAmounts(
   const out: AlertCandidate[] = [];
   for (const group of groups.values()) {
     if (group.length < MIN_GROUP_SIZE) continue;
-    const avg =
-      group.reduce((s, c) => s + (c.contract_value ?? 0), 0) / group.length;
-    if (avg <= 0) continue;
+    const values = group
+      .map((c) => c.contract_value as number)
+      .sort((a, b) => a - b);
+    const med = median(values);
+    if (med <= 0) continue;
 
     for (const c of group) {
-      const ratio = (c.contract_value ?? 0) / avg;
+      const value = c.contract_value as number;
+      if (value < MIN_VALUE) continue; // ignora contratos pequeños
+      const ratio = value / med;
       if (ratio < SUSPICIOUS_FACTOR) continue;
       const severity = ratio >= CRITICAL_FACTOR ? "critical" : "suspicious";
       out.push({
         alert_type: "inflated_amount",
         severity,
-        title: `Contrato ${ratio.toFixed(1)}× el promedio de su categoría — ${c.entity_name ?? "entidad"}`,
+        title: `Contrato ${ratio.toFixed(1)}× la mediana de su categoría — ${c.entity_name ?? "entidad"}`,
         related_contract_ids: [c.id],
         entity_name: c.entity_name,
         contractor_name: c.contractor_name,
-        total_amount: c.contract_value,
+        total_amount: value,
         facts: {
           entidad: c.entity_name,
           contratista: c.contractor_name,
           objeto: c.contract_object,
-          valor_del_contrato: c.contract_value,
-          categoria_unspsc: c.category_code,
-          promedio_misma_categoria: Math.round(avg),
+          valor_del_contrato: value,
+          mediana_categoria: Math.round(med),
           contratos_comparados: group.length,
-          veces_sobre_promedio: Number(ratio.toFixed(1)),
+          veces_sobre_mediana: Number(ratio.toFixed(1)),
+          categoria_unspsc: c.category_code,
         },
       });
     }
   }
-  return out;
+  // Solo los más extremos: ordena por múltiplo sobre la mediana y corta.
+  return out
+    .sort(
+      (a, b) =>
+        (b.facts.veces_sobre_mediana as number) -
+        (a.facts.veces_sobre_mediana as number),
+    )
+    .slice(0, MAX_ALERTS);
 }
