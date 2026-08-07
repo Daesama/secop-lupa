@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
-import { getAlertById, getContractsByIds } from "@/lib/queries";
+import {
+  getAlertById,
+  getContractsByIds,
+  getNetworkGraph,
+  getContractorGraph,
+} from "@/lib/queries";
 import { SeverityBadge, TypeChip } from "@/components/ui";
+import { NetworkGraph } from "@/components/network-graph";
 import { AlertChat } from "@/components/alert-chat";
 import { RecommendedProcess } from "@/components/recommended-process";
 import { ComparisonUniverse } from "@/components/comparison-universe";
@@ -19,6 +25,12 @@ export default async function AlertDetail({
   if (!alert) notFound();
 
   const contracts = await getContractsByIds(alert.related_contracts);
+  const network =
+    alert.alert_type === "network"
+      ? await getNetworkGraph(alert.related_contracts)
+      : alert.alert_type === "repeated_contractor"
+        ? await getContractorGraph(alert.related_contracts)
+        : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
@@ -54,6 +66,8 @@ export default async function AlertDetail({
           </p>
         </section>
       )}
+
+      {network && <NetworkGraph data={network} />}
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">

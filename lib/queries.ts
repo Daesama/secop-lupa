@@ -163,6 +163,98 @@ export async function searchContracts(q: string): Promise<ContractRow[]> {
   return [...results.values()].slice(0, 25);
 }
 
+export interface GraphData {
+  hub: string; // nodo central
+  subtitle: string; // texto bajo el centro
+  nodes: { name: string; count: number; value: number }[];
+  totalValue: number;
+  accent: string; // color del hub
+}
+
+function aggregate(
+  rows: { key: string | null; value: number | null }[],
+): { nodes: { name: string; count: number; value: number }[]; total: number } {
+  const by = new Map<string, { count: number; value: number }>();
+  let total = 0;
+  for (const r of rows) {
+    const k = r.key ?? "—";
+    const cur = by.get(k) ?? { count: 0, value: 0 };
+    cur.count += 1;
+    cur.value += r.value ?? 0;
+    by.set(k, cur);
+    total += r.value ?? 0;
+  }
+  return {
+    nodes: [...by.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.value - a.value),
+    total,
+  };
+}
+
+/** Grafo de red de fachada: representante legal (hub) ↔ contratistas. */
+export async function getNetworkGraph(ids: string[]): Promise<GraphData | null> {
+  if (ids.length === 0) return null;
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("contracts")
+    .select("contractor_name,legal_rep_name,entity_name,contract_value")
+    .in("id", ids.slice(0, 200));
+  const rows = (data ?? []) as {
+    contractor_name: string | null;
+    legal_rep_name: string | null;
+    entity_name: string | null;
+    contract_value: number | null;
+  }[];
+  if (rows.length === 0) return null;
+  const { nodes, total } = aggregate(
+    rows.map((r) => ({ key: r.contractor_name, value: r.contract_value })),
+  );
+  return {
+    hub: rows.find((r) => r.legal_rep_name)?.legal_rep_name ?? "Representante legal",
+    subtitle: rows[0].entity_name ?? "",
+    nodes,
+    totalValue: total,
+    accent: "#8b5cf6",
+  };
+}
+
+/** Grafo del contratista (hub) ↔ entidades con las que contrata en el distrito. */
+export async function getContractorGraph(ids: string[]): Promise<GraphData | null> {
+  if (ids.length === 0) return null;
+  const sb = getServiceClient();
+  // Documento del contratista a partir de un contrato relacionado.
+  const { data: one } = await sb
+    .from("contracts")
+    .select("contractor_id,contractor_name")
+    .eq("id", ids[0])
+    .maybeSingle();
+  const doc = (one as { contractor_id?: string } | null)?.contractor_id;
+  const name = (one as { contractor_name?: string } | null)?.contractor_name;
+  if (!doc) return null;
+
+  const { data } = await sb
+    .from("contracts")
+    .select("entity_name,contract_value")
+    .eq("contractor_id", doc)
+    .limit(500);
+  const rows = (data ?? []) as {
+    entity_name: string | null;
+    contract_value: number | null;
+  }[];
+  if (rows.length === 0) return null;
+  const { nodes, total } = aggregate(
+    rows.map((r) => ({ key: r.entity_name, value: r.contract_value })),
+  );
+  return {
+    hub: name ?? "Contratista",
+    subtitle: `${nodes.length} entidad(es) · ${rows.length} contrato(s)`,
+    nodes,
+    totalValue: total,
+    accent: "#2563eb",
+  };
+}
+
 export interface ReportRow {
   id: string;
   title: string;
