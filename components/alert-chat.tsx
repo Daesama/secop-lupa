@@ -14,7 +14,13 @@ const SUGGESTIONS = [
   "¿Qué debería verificar el concejal?",
 ];
 
-export function AlertChat({ alertId }: { alertId: string }) {
+export function AlertChat({
+  alertId,
+  secopId,
+}: {
+  alertId?: string;
+  secopId?: string;
+}) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +39,7 @@ export function AlertChat({ alertId }: { alertId: string }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alertId, messages: next }),
+        body: JSON.stringify({ alertId, secopId, messages: next }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error del servidor");

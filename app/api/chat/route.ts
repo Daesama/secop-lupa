@@ -6,6 +6,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
 import { getAlertById, getContractsByIds } from "@/lib/queries";
 import { CHAT_TOOLS, runChatTool } from "@/lib/ai/chat-tools";
+import {
+  lookupContract,
+  analyzeContractSignals,
+  contractContextText,
+} from "@/lib/contract-analysis";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +57,7 @@ interface InMsg {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { alertId?: string; messages?: InMsg[] };
+  let body: { alertId?: string; secopId?: string; messages?: InMsg[] };
   try {
     body = await req.json();
   } catch {
@@ -72,6 +77,12 @@ export async function POST(req: NextRequest) {
     if (alert) {
       const contracts = await getContractsByIds(alert.related_contracts);
       system = `${SYSTEM}\n\n${buildContext(alert, contracts)}`;
+    }
+  } else if (body.secopId) {
+    const c = await lookupContract(body.secopId);
+    if (c) {
+      const signals = await analyzeContractSignals(c);
+      system = `${SYSTEM}\n\n${contractContextText(c, signals)}`;
     }
   }
 

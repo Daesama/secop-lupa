@@ -33,7 +33,13 @@ interface Ruta {
   derecho_peticion: DerechoPeticion;
 }
 
-export function RecommendedProcess({ alertId }: { alertId: string }) {
+export function RecommendedProcess({
+  alertId,
+  secopId,
+}: {
+  alertId?: string;
+  secopId?: string;
+}) {
   const [ruta, setRuta] = useState<Ruta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +52,7 @@ export function RecommendedProcess({ alertId }: { alertId: string }) {
       const res = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alertId }),
+        body: JSON.stringify({ alertId, secopId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error del servidor");

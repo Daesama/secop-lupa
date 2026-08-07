@@ -5,6 +5,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
 import { getAlertById, getContractsByIds } from "@/lib/queries";
+import {
+  lookupContract,
+  analyzeContractSignals,
+  contractContextText,
+} from "@/lib/contract-analysis";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -91,23 +96,20 @@ const SCHEMA = {
 } as const;
 
 export async function POST(req: NextRequest) {
-  let body: { alertId?: string };
+  let body: { alertId?: string; secopId?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
-  if (!body.alertId) {
-    return NextResponse.json({ error: "Falta alertId" }, { status: 400 });
-  }
-
-  const alert = await getAlertById(body.alertId);
-  if (!alert) {
-    return NextResponse.json({ error: "Alerta no encontrada" }, { status: 404 });
-  }
-  const contracts = await getContractsByIds(alert.related_contracts);
-
-  const context = `ALERTA:
+  let context: string;
+  if (body.alertId) {
+    const alert = await getAlertById(body.alertId);
+    if (!alert) {
+      return NextResponse.json({ error: "Alerta no encontrada" }, { status: 404 });
+    }
+    const contracts = await getContractsByIds(alert.related_contracts);
+    context = `ALERTA:
 Tipo: ${alert.alert_type} | Gravedad: ${alert.severity}
 Título: ${alert.title}
 Descripción: ${alert.description}
@@ -119,6 +121,19 @@ ${contracts
   .slice(0, 10)
   .map((c) => `- ${c.secop_id} | ${c.contractor_name ?? "?"} | ${formatCOP(c.contract_value)} | ${c.selection_method ?? "?"}`)
   .join("\n")}`;
+  } else if (body.secopId) {
+    const c = await lookupContract(body.secopId);
+    if (!c) {
+      return NextResponse.json({ error: "Contrato no encontrado" }, { status: 404 });
+    }
+    const signals = await analyzeContractSignals(c);
+    context = contractContextText(c, signals);
+  } else {
+    return NextResponse.json(
+      { error: "Falta alertId o secopId" },
+      { status: 400 },
+    );
+  }
 
   try {
     const client = new Anthropic();
@@ -130,7 +145,7 @@ ${contracts
       messages: [
         {
           role: "user",
-          content: `Genera la ruta de acción recomendada para esta alerta.\n\n${context}`,
+          content: `Genera la ruta de acción recomendada a partir de la siguiente información.\n\n${context}`,
         },
       ],
     });
