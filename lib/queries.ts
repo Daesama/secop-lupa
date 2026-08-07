@@ -310,6 +310,50 @@ export async function getEntityGraph(ids: string[]): Promise<GraphData | null> {
   };
 }
 
+function normLoc(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+}
+
+/** Valor y # de contratos por localidad (vía Alcaldías Locales). Para el mapa. */
+export async function getLocalityValues(): Promise<
+  Record<string, { count: number; value: number }>
+> {
+  const sb = getServiceClient();
+  const out: Record<string, { count: number; value: number }> = {};
+  let last = "";
+  for (;;) {
+    let q = sb
+      .from("contracts")
+      .select("id,entity_name,contract_value")
+      .ilike("entity_name", "%alcald%local%")
+      .order("id")
+      .limit(1000);
+    if (last) q = q.gt("id", last);
+    const { data } = await q;
+    if (!data || data.length === 0) break;
+    for (const c of data as {
+      id: string;
+      entity_name: string | null;
+      contract_value: number | null;
+    }[]) {
+      const m = (c.entity_name ?? "").match(/local\s+de\s+(.+)/i);
+      if (!m) continue;
+      const key = normLoc(m[1]);
+      if (!key) continue;
+      out[key] = out[key] ?? { count: 0, value: 0 };
+      out[key].count += 1;
+      out[key].value += c.contract_value ?? 0;
+    }
+    last = (data[data.length - 1] as { id: string }).id;
+    if (data.length < 1000) break;
+  }
+  return out;
+}
+
 export interface ReportRow {
   id: string;
   title: string;

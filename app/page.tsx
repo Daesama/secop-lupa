@@ -8,16 +8,19 @@ import {
 import { AlertCard, StatCard } from "@/components/ui";
 import { EntityBars, TypeBars } from "@/components/charts";
 import { ExecSummary } from "@/components/exec-summary";
+import { LocalityMap } from "@/components/locality-map";
+import { getLocalityValues } from "@/lib/queries";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [stats, topAlerts, byEntity, byType] = await Promise.all([
+  const [stats, topAlerts, byEntity, byType, localities] = await Promise.all([
     getAlertStats(),
     getAlerts({ limit: 8 }),
     getAlertsByEntity(7),
     getAlertsByType(),
+    getLocalityValues(),
   ]);
 
   return (
@@ -78,10 +81,13 @@ export default async function Home() {
         />
       </div>
 
-      {/* Gráficas */}
+      {/* Gráficas + mapa */}
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <EntityBars data={byEntity} />
         <TypeBars data={byType} />
+      </div>
+      <div className="mt-4">
+        <LocalityMap data={localities} />
       </div>
 
       {/* Alertas destacadas */}
