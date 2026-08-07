@@ -87,15 +87,18 @@ export function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
+    <div className="card-soft rounded-2xl p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-hover">
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted">{label}</span>
         {Icon && (
           <span
-            className="grid h-8 w-8 place-items-center rounded-lg"
-            style={{ color: accent ?? "var(--primary)", backgroundColor: "var(--surface-2)" }}
+            className="grid h-9 w-9 place-items-center rounded-xl"
+            style={{
+              color: accent ?? "var(--primary)",
+              backgroundColor: `color-mix(in srgb, ${accent ?? "var(--primary)"} 12%, transparent)`,
+            }}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-[18px] w-[18px]" />
           </span>
         )}
       </div>
@@ -113,7 +116,7 @@ export function AlertCard({ alert }: { alert: AlertRow }) {
   return (
     <Link
       href={`/alerts/${alert.id}`}
-      className="group flex overflow-hidden rounded-2xl border border-border bg-surface transition hover:border-primary/40 hover:shadow-[0_4px_24px_-8px_rgba(37,99,235,0.25)] focus-visible:outline-2 focus-visible:outline-primary"
+      className="card-soft group flex overflow-hidden rounded-2xl transition duration-200 hover:-translate-y-0.5 hover:shadow-hover focus-visible:outline-2 focus-visible:outline-primary"
     >
       <div className={`w-1.5 shrink-0 ${SEVERITY_STRIPE[alert.severity]}`} />
       <div className="flex-1 p-5">

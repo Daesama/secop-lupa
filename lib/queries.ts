@@ -58,6 +58,40 @@ export async function getAlertStats(): Promise<AlertStats> {
   };
 }
 
+export interface Count {
+  label: string;
+  value: number;
+  key?: string;
+}
+
+/** Top entidades por número de alertas (para gráfica de ranking). */
+export async function getAlertsByEntity(limit = 7): Promise<Count[]> {
+  const sb = getServiceClient();
+  const { data } = await sb.from("alerts").select("entity_name");
+  const counts = new Map<string, number>();
+  for (const r of (data ?? []) as { entity_name: string | null }[]) {
+    const k = r.entity_name ?? "Sin entidad";
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
+}
+
+/** Alertas por tipo de patrón (para gráfica por categoría). */
+export async function getAlertsByType(): Promise<Count[]> {
+  const sb = getServiceClient();
+  const { data } = await sb.from("alerts").select("alert_type");
+  const counts = new Map<string, number>();
+  for (const r of (data ?? []) as { alert_type: string }[]) {
+    counts.set(r.alert_type, (counts.get(r.alert_type) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([key, value]) => ({ key, label: key, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
 export async function getAlerts(opts: {
   severity?: string;
   limit?: number;

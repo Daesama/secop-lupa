@@ -7,15 +7,19 @@
    Tokens semánticos — Gov-tech moderno. Cambian entre claro y oscuro.
    --------------------------------------------------------------------- */
 :root {
-  --bg: #f4f7fb;
+  --bg: #eef2f9;
   --surface: #ffffff;
-  --surface-2: #eef2f7;
-  --border: #e2e8f0;
+  --surface-2: #eff3fa;
+  --border: #e7ecf5;
   --fg: #0f172a;
   --muted: #64748b;
   --primary: #2563eb;
   --primary-fg: #ffffff;
+  --secondary: #6366f1;
+  --accent: #0ea5e9;
   --ring: #bfdbfe;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px -8px rgba(15, 23, 42, 0.1);
+  --shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px -12px rgba(37, 99, 235, 0.28);
 
   --critical: #dc2626;
   --critical-bg: #fef2f2;
@@ -29,15 +33,19 @@
 }
 
 .dark {
-  --bg: #0b1220;
-  --surface: #111a2e;
-  --surface-2: #16213b;
+  --bg: #0a101e;
+  --surface: #121c30;
+  --surface-2: #18243c;
   --border: #223049;
   --fg: #e6edf7;
   --muted: #93a4bd;
   --primary: #3b82f6;
   --primary-fg: #ffffff;
+  --secondary: #818cf8;
+  --accent: #38bdf8;
   --ring: #1e3a8a;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px -10px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.35), 0 14px 36px -12px rgba(59, 130, 246, 0.35);
 
   --critical: #f87171;
   --critical-bg: #2a1620;
@@ -60,7 +68,11 @@
   --color-muted: var(--muted);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
   --color-ring: var(--ring);
+  --shadow-card: var(--shadow-card);
+  --shadow-hover: var(--shadow-hover);
 
   --color-critical: var(--critical);
   --color-critical-bg: var(--critical-bg);
@@ -85,10 +97,30 @@
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 600px at 100% -10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 60%),
+    radial-gradient(900px 500px at -10% 0%, color-mix(in srgb, var(--secondary) 9%, transparent), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Degradado de marca (héroes, botones destacados). */
+.gradient-brand {
+  background-image: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    color-mix(in srgb, var(--secondary) 85%, var(--primary)) 100%
+  );
+}
+
+/* Tarjeta suave: elevación por sombra, borde tenue (menos "cuadriculado"). */
+.card-soft {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: var(--shadow-card);
 }
 
 /* Transición suave al cambiar de tema. */
