@@ -7,6 +7,7 @@ import {
 } from "@/lib/queries";
 import { AlertCard, StatCard } from "@/components/ui";
 import { EntityBars, TypeBars } from "@/components/charts";
+import { ExecSummary } from "@/components/exec-summary";
 import { formatCOP } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <ExecSummary />
 
       {/* KPIs */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
