@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { FileSearch, ChevronRight } from "lucide-react";
 import { ContractSearch } from "@/components/contract-search";
 import { searchContracts } from "@/lib/queries";
@@ -12,6 +13,9 @@ export default async function ContractsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  // Si la búsqueda contiene un ID de SECOP, ir directo al análisis del contrato.
+  const idMatch = q?.match(/CO1\.(?:PCCNTR|NTC)\.[0-9]+/i);
+  if (idMatch) redirect(`/contracts/${encodeURIComponent(idMatch[0].toUpperCase())}`);
   const results = q ? await searchContracts(q) : [];
 
   return (

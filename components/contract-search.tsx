@@ -12,9 +12,11 @@ export function ContractSearch({ initial = "" }: { initial?: string }) {
     e.preventDefault();
     const v = q.trim();
     if (v.length < 3) return;
-    // Si parece un ID de SECOP (CO1.PCCNTR / CO1.NTC), ir directo al análisis
-    // (trae en vivo si no está en la base). Si es texto, mostrar resultados.
-    if (/^co1\./i.test(v)) router.push(`/contracts/${encodeURIComponent(v)}`);
+    // Extrae un ID de SECOP (CO1.PCCNTR / CO1.NTC) aunque venga dentro de una
+    // frase o de una URL. Si lo hay, va directo al análisis (trae en vivo si no
+    // está en la base). Si no, muestra resultados por texto.
+    const id = v.match(/CO1\.(?:PCCNTR|NTC)\.[0-9]+/i);
+    if (id) router.push(`/contracts/${encodeURIComponent(id[0].toUpperCase())}`);
     else router.push(`/contracts?q=${encodeURIComponent(v)}`);
   }
 
