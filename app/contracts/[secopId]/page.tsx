@@ -1,5 +1,9 @@
 import { ArrowLeft, ExternalLink, Database, Globe } from "lucide-react";
-import { lookupContract, analyzeContractSignals } from "@/lib/contract-analysis";
+import {
+  lookupContract,
+  analyzeContractSignals,
+  UMBRALES,
+} from "@/lib/contract-analysis";
 import { ContractAssessment } from "@/components/contract-assessment";
 import { RecommendedProcess } from "@/components/recommended-process";
 import { AlertChat } from "@/components/alert-chat";
@@ -47,6 +51,7 @@ export default async function ContractPage({
   }
 
   const signals = await analyzeContractSignals(contract);
+  const { disponibles, faltantes } = buildMetrics(signals, contract);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -108,45 +113,198 @@ export default async function ContractPage({
         )}
       </div>
 
-      {/* Señales deterministas */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Signal
-          label="vs. promedio de categoría"
-          value={
-            signals.vecesSobrePromedio
-              ? `${signals.vecesSobrePromedio.toFixed(1)}×`
-              : "n/d"
-          }
-          sub={
-            signals.promedioCategoria
-              ? `prom. ${formatCOP(signals.promedioCategoria)} · ${signals.contratosCategoria} contratos`
-              : "sin categoría comparable"
-          }
-          alert={(signals.vecesSobrePromedio ?? 0) >= 3}
-        />
-        <Signal
-          label="Contratos del contratista"
-          value={String(signals.contratosDelContratista ?? "n/d")}
-          sub="en el distrito"
-          alert={(signals.contratosDelContratista ?? 0) > 5}
-        />
-        <Signal
-          label="Directa de la entidad"
-          value={
-            signals.porcentajeDirectaEntidad != null
-              ? `${signals.porcentajeDirectaEntidad.toFixed(0)}%`
-              : "n/d"
-          }
-          sub={`de ${signals.contratosEntidad ?? "?"} contratos`}
-          alert={(signals.porcentajeDirectaEntidad ?? 0) >= 90}
-        />
-      </div>
+      {/* Señales deterministas. Solo se pinta la métrica que TIENE dato; las que
+          no, se agrupan abajo con su causa. Una casilla en "n/d" no informa
+          nada y hace ver la plataforma incompleta cuando el vacío es de SECOP. */}
+      {disponibles.length > 0 && (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {disponibles.map((m) => (
+            <Signal
+              key={m.label}
+              label={m.label}
+              value={m.value!}
+              sub={m.sub!}
+              alert={m.alert}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Posible fraccionamiento: solo si de verdad hay contratos en la ventana. */}
+      {(signals.contratosVentana ?? 0) > 0 && (
+        <div className="mt-3">
+          <span className="inline-block rounded-full border border-suspicious-bd bg-suspicious-bg px-3 py-1 text-xs font-medium text-suspicious">
+            {signals.contratosVentana} contrato(s) más con el mismo contratista en
+            ±{UMBRALES.VENTANA_DIAS} días · {formatCOP(signals.montoVentana)}
+          </span>
+        </div>
+      )}
+
+      {/* Lo que la fuente no permite calcular, dicho con su causa. */}
+      {faltantes.length > 0 && (
+        <div className="mt-3 rounded-xl border border-dashed border-border bg-surface/60 p-3.5">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            No calculable con los datos de SECOP ({faltantes.length})
+          </h2>
+          <ul className="mt-2 space-y-1.5">
+            {faltantes.map((m) => (
+              <li key={m.label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+                <span className="shrink-0 text-xs font-medium text-fg/80">
+                  {m.label}:
+                </span>
+                <span className="text-xs leading-relaxed text-muted">
+                  {m.motivo}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {signals.coberturaDesde && signals.coberturaHasta && (
+        <p className="mt-2.5 text-[11px] leading-relaxed text-muted">
+          Base distrital: contratos firmados entre {signals.coberturaDesde} y{" "}
+          {signals.coberturaHasta}. Fuera de esa ventana el historial del
+          contratista se consulta en SECOP II en vivo.
+        </p>
+      )}
 
       <ContractAssessment secopId={contract.secop_id} />
       <RecommendedProcess secopId={contract.secop_id} />
       <AlertChat secopId={contract.secop_id} />
     </div>
   );
+}
+
+interface Metric {
+  label: string;
+  value?: string;
+  sub?: string;
+  alert?: boolean;
+  /** Presente solo si la métrica no se pudo calcular: explica por qué. */
+  motivo?: string;
+}
+
+/**
+ * Decide, métrica por métrica, si hay dato o no — y cuando no lo hay, con qué
+ * causa concreta. Las causas son límites reales de SECOP (campo mal
+ * diligenciado, consorcio sin documento propio, ventana de la base), no fallas
+ * del análisis, y por eso se enuncian en vez de mostrar un "n/d" mudo.
+ */
+function buildMetrics(
+  s: Awaited<ReturnType<typeof analyzeContractSignals>>,
+  c: Awaited<ReturnType<typeof lookupContract>>,
+): { disponibles: Metric[]; faltantes: Metric[] } {
+  const sinHistorial =
+    !c?.contractor_id || /no definido|sin descripcion|^0$/i.test(c.contractor_id)
+      ? "el contratista figura en SECOP sin documento propio (habitual en consorcios y uniones temporales), así que no hay historial que agregar"
+      : "no se hallaron otros contratos suyos con entidades distritales, ni en la base ni consultando SECOP en vivo";
+
+  const all: Metric[] = [
+    s.vecesSobreMediana != null && s.medianaCategoria != null
+      ? {
+          label: "vs. mediana de categoría",
+          value: `${s.vecesSobreMediana.toFixed(1)}×`,
+          sub: `mediana ${formatCOP(s.medianaCategoria)} · n=${s.muestraCategoria}${s.muestraExacta ? "" : " (muestra parcial)"}`,
+          alert:
+            s.vecesSobreMediana >= UMBRALES.PRECIO_ATENCION && s.muestraSuficiente,
+        }
+      : {
+          label: "vs. mediana de categoría",
+          motivo: c?.category_code
+            ? `la categoría ${c.category_code} no tiene contratos distritales comparables en la base`
+            : "el contrato no trae código de categoría UNSPSC en SECOP, así que no hay universo contra el cual compararlo",
+        },
+
+    s.percentilValor != null
+      ? {
+          label: "Percentil del valor",
+          value: `P${s.percentilValor.toFixed(1)}`,
+          sub: `supera a ese % de los ${s.muestraCategoria} comparables`,
+          alert: s.percentilValor >= 99,
+        }
+      : {
+          label: "Percentil del valor",
+          motivo:
+            c?.contract_value == null
+              ? "el contrato no reporta valor en SECOP"
+              : "depende del universo de la categoría, que no está disponible",
+        },
+
+    s.porcentajeDirectaEntidad != null
+      ? {
+          label: "Directa de la entidad",
+          value: `${s.porcentajeDirectaEntidad.toFixed(0)}%`,
+          sub:
+            s.baseDirectaDistrito != null
+              ? `distrito: ${s.baseDirectaDistrito.toFixed(0)}% · ${s.contratosEntidad} contratos`
+              : `de ${s.contratosEntidad} contratos`,
+          alert: s.porcentajeDirectaEntidad >= UMBRALES.DIRECTA_ALTA,
+        }
+      : {
+          label: "Directa de la entidad",
+          motivo:
+            "la entidad no tiene contratos en la ventana de la base distrital",
+        },
+
+    s.dependenciaDeLaEntidad != null
+      ? {
+          label: "Dependencia del contratista",
+          value: `${s.dependenciaDeLaEntidad.toFixed(0)}%`,
+          sub: `de sus ${s.contratosDelContratista} contratos${s.fuenteContratista === "secop" ? " (SECOP en vivo)" : ""}`,
+          alert: s.dependenciaDeLaEntidad >= UMBRALES.DEPENDENCIA_ALTA,
+        }
+      : { label: "Dependencia del contratista", motivo: sinHistorial },
+
+    s.puestoEnLaEntidad != null
+      ? {
+          label: "Puesto en la entidad",
+          value: `#${s.puestoEnLaEntidad}`,
+          sub:
+            s.participacionEnLaEntidad != null
+              ? `de ${s.totalContratistasEntidad} · ${s.participacionEnLaEntidad.toFixed(1)}% del gasto`
+              : "por monto adjudicado",
+          alert: s.puestoEnLaEntidad <= 3,
+        }
+      : {
+          label: "Puesto en la entidad",
+          motivo:
+            "este contratista no aparece entre los proveedores de la entidad dentro de la ventana de la base",
+        },
+
+    s.vecesSobreRitmoCategoria != null && s.copPorDia != null
+      ? {
+          label: "Ritmo de ejecución",
+          value: `${s.vecesSobreRitmoCategoria.toFixed(1)}×`,
+          sub: `${formatCOP(Math.round(s.copPorDia))}/día · ${s.diasDeEjecucion} días`,
+          alert: s.vecesSobreRitmoCategoria >= 5,
+        }
+      : {
+          label: "Ritmo de ejecución",
+          motivo:
+            s.diasDeEjecucion == null
+              ? "el contrato no reporta fechas de inicio y fin en SECOP (falta en ~18% de los registros)"
+              : "no hay suficientes contratos de la categoría con plazo diligenciado para fijar un ritmo de referencia",
+        },
+
+    s.contratistasMismoRepresentante != null
+      ? {
+          label: "Red del representante legal",
+          value: String(s.contratistasMismoRepresentante),
+          sub: "contratistas comparten representante en esta entidad",
+          alert: s.contratistasMismoRepresentante >= UMBRALES.RED_MIN,
+        }
+      : {
+          label: "Red del representante legal",
+          motivo:
+            "SECOP reporta el representante legal como “Sin Descripción” en cerca del 75% de los contratos del distrito; sin documento no se puede cruzar. Es una omisión de la entidad al diligenciar, exigible por derecho de petición",
+        },
+  ];
+
+  return {
+    disponibles: all.filter((m) => m.value != null),
+    faltantes: all.filter((m) => m.value == null),
+  };
 }
 
 function Signal({
