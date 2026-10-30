@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SECOP Lupa — Seguimiento SECOP II, Bogotá
 
-## Getting Started
+Herramienta de análisis forense de contratación pública. Sincroniza los contratos de **SECOP II (Bogotá D.C.)** desde datos abiertos, los analiza con IA y produce insumos accionables de **control político**: hallazgos, alertas y reportes pensados para el equipo de un concejal, asesores y periodistas.
 
-First, run the development server:
+No es un dashboard que "muestra datos": cada análisis termina en una acción concreta con instrumento y destinatario (derecho de petición, expediente en SECOP II, cruce con RUES, traslado a Contraloría o Personería Distrital, citación a debate).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> **Demo en vivo:** _(pendiente de enlazar)_
+> **Stack:** Next.js 14 · TypeScript · Supabase (PostgreSQL) · Claude (Anthropic) · Recharts
+
+---
+
+## Qué hace
+
+- **Sincronización automática** de contratos de SECOP II (Bogotá) mediante un *cron job* que pagina la API de datos abiertos y hace *upsert* en Supabase sin duplicar (`onConflict: secop_id`), con registro de cada corrida en `sync_logs`.
+- **Análisis forense con IA** por contrato: envía el contrato a Claude bajo un *system prompt* de analista de contratación y devuelve hallazgos con estándar de control político, cada uno con su acción ejecutable (instrumento + destinatario).
+- **Alertas** sobre patrones de riesgo en la contratación.
+- **Reportes** generados y exportables.
+- **Chat** sobre la base de contratos para consultas en lenguaje natural.
+- **Visualizaciones**: ranking de contratistas/entidades, grafo de red de relaciones, mapa por localidad y resumen ejecutivo.
+
+## Arquitectura
+
+```
+SECOP II (datos abiertos)
+        │  cron/sync-contracts  → paginación + upsert
+        ▼
+   Supabase (PostgreSQL)
+   contracts · alerts · reports · sync_logs
+        │
+        ▼
+   API routes (Next.js App Router)
+   analyze-contract · summary · recommend · chat · reports/generate
+        │  Claude (Anthropic SDK)
+        ▼
+   UI (React · Recharts)
+   ranking · network-graph · locality-map · exec-summary
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **`app/api/cron/sync-contracts`** — descarga e ingesta incremental desde SECOP II.
+- **`app/api/cron/analyze-contracts`** — análisis por lotes programado.
+- **`app/api/analyze-contract`** — análisis forense de un contrato puntual con Claude.
+- **`app/api/{summary,recommend,chat,reports/generate}`** — resúmenes, recomendaciones, chat y reportes.
+- Validación de entradas con **Zod**; acceso a datos con el cliente de **Supabase**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Capa | Tecnología |
+|---|---|
+| Framework | Next.js 14 (App Router), TypeScript |
+| Base de datos | Supabase (PostgreSQL) |
+| IA | Claude (Anthropic SDK) |
+| Gráficas | Recharts |
+| Validación | Zod |
+| Deploy | Vercel |
 
-## Learn More
+## Ejecutar en local
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+git clone https://github.com/Daesama/secop-lupa.git
+cd secop-lupa
+npm install
+cp .env.example .env.local   # completar las variables de abajo
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Variables de entorno (`.env.local`):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ANTHROPIC_API_KEY=
+CRON_SECRET=
+```
 
-## Deploy on Vercel
+Esquema de base de datos en `supabase/schema.sql` y `supabase/migrations/`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Disparar la sincronización manualmente:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/sync-contracts
+```
+
+## Estado
+
+Proyecto en desarrollo activo. Construido en solitario como herramienta real de control social sobre la contratación pública de Bogotá.
